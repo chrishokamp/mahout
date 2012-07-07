@@ -84,6 +84,7 @@ public final class DictionaryVectorizer implements Vectorizer {
   //TODO: move more of SparseVectorsFromSequenceFile in here, and then fold SparseVectorsFrom with
   // EncodedVectorsFrom to have one framework.
 
+  //Chris: there will be an exception here (null pointer) due to getDictPath() if we try to run EncodedVectorsFromSequenceFiles
   @Override
   public void createVectors(Path input, Path output, VectorizerConfig config)
     throws IOException, ClassNotFoundException, InterruptedException {
@@ -99,7 +100,8 @@ public final class DictionaryVectorizer implements Vectorizer {
                                config.getNumReducers(),
                                config.getChunkSizeInMegabytes(),
                                config.isSequentialAccess(),
-                               config.isNamedVectors());
+                               config.isNamedVectors(),
+                               config.getDictPath());
   }
 
   /**
@@ -134,6 +136,9 @@ public final class DictionaryVectorizer implements Vectorizer {
    *          recommend you use a split size of around 400-500MB so that two simultaneous reducers can create
    *          partial vectors without thrashing the system due to increased swapping
    */
+
+
+
   public static void createTermFrequencyVectors(Path input,
                                                 Path output,
                                                 String tfVectorsFolderName,
@@ -146,7 +151,8 @@ public final class DictionaryVectorizer implements Vectorizer {
                                                 int numReducers,
                                                 int chunkSizeInMegabytes,
                                                 boolean sequentialAccess,
-                                                boolean namedVectors)
+                                                boolean namedVectors,
+                                                Path dictionaryPath)
     throws IOException, InterruptedException, ClassNotFoundException {
     Preconditions.checkArgument(normPower == PartialVectorMerger.NO_NORMALIZING || normPower >= 0,
         "If specified normPower must be nonnegative", normPower);
@@ -167,20 +173,28 @@ public final class DictionaryVectorizer implements Vectorizer {
     
     int[] maxTermDimension = new int[1];
     List<Path> dictionaryChunks;
-    if (maxNGramSize == 1) {
-      startWordCounting(input, dictionaryJobPath, baseConf, minSupport);
-      dictionaryChunks =
-          createDictionaryChunks(dictionaryJobPath, output, baseConf, chunkSizeInMegabytes, maxTermDimension);
-    } else {
-      CollocDriver.generateAllGrams(input, dictionaryJobPath, baseConf, maxNGramSize,
-        minSupport, minLLRValue, numReducers);
-      dictionaryChunks =
-          createDictionaryChunks(new Path(new Path(output, DICTIONARY_JOB_FOLDER),
-                                          CollocDriver.NGRAM_OUTPUT_DIRECTORY),
-                                 output,
-                                 baseConf,
-                                 chunkSizeInMegabytes,
-                                 maxTermDimension);
+
+    //Chris: check if a path to a dictionary was passed
+    if (dictionaryPath != null)
+    {
+        dictionaryChunks = createDictionaryChunks(dictionaryPath);
+    }
+    else {
+        if (maxNGramSize == 1) {
+        startWordCounting(input, dictionaryJobPath, baseConf, minSupport);
+        dictionaryChunks =
+              createDictionaryChunks(dictionaryJobPath, output, baseConf, chunkSizeInMegabytes, maxTermDimension);
+        } else {
+        CollocDriver.generateAllGrams(input, dictionaryJobPath, baseConf, maxNGramSize,
+            minSupport, minLLRValue, numReducers);
+        dictionaryChunks =
+              createDictionaryChunks(new Path(new Path(output, DICTIONARY_JOB_FOLDER),
+                                              CollocDriver.NGRAM_OUTPUT_DIRECTORY),
+                                     output,
+                                     baseConf,
+                                     chunkSizeInMegabytes,
+                                     maxTermDimension);
+        }
     }
     
     int partialVectorIndex = 0;
@@ -200,6 +214,22 @@ public final class DictionaryVectorizer implements Vectorizer {
     HadoopUtil.delete(conf, partialVectorPaths);
   }
   
+  /**
+   * Chris: allow the usage of an existing dictionary - this facilitates creating new vectors
+   * with the same dimensionality and column indexes as vectors in an existing matrix
+   * TODO: right now this only works with a SINGLE dictionary chunk - needs to be updated to glob all chunks in a directory
+   * @param dictionaryPath - the path to the dictionary file (i.e. .../.../dictionary.file-0
+   *
+   */
+  private static List<Path> createDictionaryChunks (Path dictionaryPath) {
+      List<Path> chunkPaths = Lists.newArrayList();
+      Path dictionary = dictionaryPath;
+      chunkPaths.add(dictionary);
+
+      return chunkPaths;
+
+  }
+
   /**
    * Read the feature frequency List which is built at the end of the Word Count Job and assign ids to them.
    * This will use constant memory and will run at the speed of your disk read

@@ -172,24 +172,35 @@ public final class TFIDFConverter {
    */
   public static Pair<Long[],List<Path>> calculateDF(Path input,
                                                     Path output,
+                                                    Path freqFile,
                                                     Configuration baseConf,
                                                     int chunkSizeInMegabytes)
     throws IOException, InterruptedException, ClassNotFoundException {
 
-    if (chunkSizeInMegabytes < MIN_CHUNKSIZE) {
-      chunkSizeInMegabytes = MIN_CHUNKSIZE;
-    } else if (chunkSizeInMegabytes > MAX_CHUNKSIZE) { // 10GB
-      chunkSizeInMegabytes = MAX_CHUNKSIZE;
+      if (chunkSizeInMegabytes < MIN_CHUNKSIZE) {
+          chunkSizeInMegabytes = MIN_CHUNKSIZE;
+      } else if (chunkSizeInMegabytes > MAX_CHUNKSIZE) { // 10GB
+          chunkSizeInMegabytes = MAX_CHUNKSIZE;
+      }
+
+    //Chris: TODO - added for testing - confirm functionality
+    if (freqFile != null) {
+        Path wordCountPath = new Path(freqFile, WORDCOUNT_OUTPUT_FOLDER);
+        startDFCounting(input, wordCountPath, baseConf);
+        return createDictionaryChunks(wordCountPath, output, baseConf, chunkSizeInMegabytes);
     }
-
-    Path wordCountPath = new Path(output, WORDCOUNT_OUTPUT_FOLDER);
-
-    startDFCounting(input, wordCountPath, baseConf);
-
-    return createDictionaryChunks(wordCountPath, output, baseConf, chunkSizeInMegabytes);
+    else {
+         Path wordCountPath = new Path(output, WORDCOUNT_OUTPUT_FOLDER);
+         startDFCounting(input, wordCountPath, baseConf);
+         return createDictionaryChunks(wordCountPath, output, baseConf, chunkSizeInMegabytes);
+    }
   }
 
-  /**
+
+
+
+
+    /**
    * Read the document frequency List which is built at the end of the DF Count Job. This will use constant
    * memory and will run at the speed of your disk read
    */

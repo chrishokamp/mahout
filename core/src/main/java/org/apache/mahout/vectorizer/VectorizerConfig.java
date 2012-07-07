@@ -18,6 +18,7 @@
 package org.apache.mahout.vectorizer;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 
 /**
  * The config for a Vectorizer.  Not all implementations need use all variables.
@@ -39,6 +40,7 @@ public final class VectorizerConfig {
   private boolean logNormalize;
   private int numReducers;
   private int chunkSizeInMegabytes;
+  private Path dictPath;
 
   public VectorizerConfig(Configuration conf,
                           String analyzerClassName,
@@ -79,6 +81,17 @@ public final class VectorizerConfig {
   public void setEncoderName(String encoderName) {
     this.encoderName = encoderName;
   }
+
+  public void setDictPath (String dictPath)
+  {
+      this.dictPath = new Path(dictPath);
+  }
+
+  public Path getDictPath () {
+      return dictPath;
+  }
+
+
 
   public boolean isSequentialAccess() {
     return sequentialAccess;

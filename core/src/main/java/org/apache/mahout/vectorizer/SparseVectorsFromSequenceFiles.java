@@ -85,6 +85,17 @@ public final class SparseVectorsFromSequenceFiles extends AbstractJob {
       abuilder.withName("minDF").withMinimum(1).withMaximum(1).create()).withDescription(
       "The minimum document frequency.  Default is 1").withShortName("md").create();
 
+    //Chris: added for testing
+    Option useDictOpt = obuilder.withLongName("useDict").withRequired(false).withArgument(
+            abuilder.withName("useDict").withMinimum(1).withMaximum(1).create()).withDescription(
+            "The path to the dictionary file to use in creating vectors").withShortName("ud").create();
+
+    Option useFreqFileOpt = obuilder.withLongName("useFreqFile").withRequired(false).withArgument(
+            abuilder.withName("useFreqFile").withMinimum(1).withMaximum(1).create()).withDescription(
+            "The path to the document frequency file to use in creating vectors").withShortName("uf").create();
+    //end edits
+
+
     Option maxDFPercentOpt = obuilder.withLongName("maxDFPercent").withRequired(false).withArgument(
         abuilder.withName("maxDFPercent").withMinimum(1).withMaximum(1).create()).withDescription(
         "The max percentage of docs for the DF.  Can be used to remove really high frequency terms."
@@ -137,9 +148,10 @@ public final class SparseVectorsFromSequenceFiles extends AbstractJob {
       "If set, overwrite the output directory").withShortName("ow").create();
     Option helpOpt = obuilder.withLongName("help").withDescription("Print out help").withShortName("h")
         .create();
-    
+
+    //Chris: add the options
     Group group = gbuilder.withName("Options").withOption(minSupportOpt).withOption(analyzerNameOpt)
-        .withOption(chunkSizeOpt).withOption(outputDirOpt).withOption(inputDirOpt).withOption(minDFOpt)
+        .withOption(chunkSizeOpt).withOption(outputDirOpt).withOption(useDictOpt).withOption(useFreqFileOpt).withOption(inputDirOpt).withOption(minDFOpt)
         .withOption(maxDFSigmaOpt).withOption(maxDFPercentOpt).withOption(weightOpt).withOption(powerOpt)
         .withOption(minLLROpt).withOption(numReduceTasksOpt).withOption(maxNGramSizeOpt).withOption(overwriteOutput)
         .withOption(helpOpt).withOption(sequentialAccessVectorOpt).withOption(namedVectorOpt)
@@ -179,7 +191,25 @@ public final class SparseVectorsFromSequenceFiles extends AbstractJob {
         }
       }
       log.info("Maximum n-gram size is: {}", maxNGramSize);
-      
+
+      //Chris: added for testing
+      Path dictPath = null;
+      if (cmdLine.hasOption(useDictOpt))
+      {
+           dictPath = new Path(cmdLine.getValue(useDictOpt).toString());
+      }
+      log.info("path to existing dictionary is: "+ dictPath.toString());
+
+      Path freqFilePath = null;
+      if (cmdLine.hasOption(useFreqFileOpt))
+      {
+          freqFilePath = new Path(cmdLine.getValue(useFreqFileOpt).toString());
+      }
+      log.info("path to existing frequency file is: "+ useFreqFileOpt.toString());
+
+      //end edits
+
+
       if (cmdLine.hasOption(overwriteOutput)) {
         HadoopUtil.delete(getConf(), outputDir);
       }
@@ -281,7 +311,8 @@ public final class SparseVectorsFromSequenceFiles extends AbstractJob {
                                                         reduceTasks,
                                                         chunkSize,
                                                         sequentialAccessOutput,
-                                                        namedVectors);
+                                                        namedVectors,
+                                                        dictPath);
       } else {
         DictionaryVectorizer.createTermFrequencyVectors(tokenizedPath,
                                                         outputDir,
@@ -295,16 +326,20 @@ public final class SparseVectorsFromSequenceFiles extends AbstractJob {
                                                         reduceTasks,
                                                         chunkSize,
                                                         sequentialAccessOutput,
-                                                        namedVectors);
+                                                        namedVectors,
+                                                        dictPath);
       }
 
       Pair<Long[], List<Path>> docFrequenciesFeatures = null;
       // Should document frequency features be processed
       if (shouldPrune || processIdf) {
         docFrequenciesFeatures =
-            TFIDFConverter.calculateDF(new Path(outputDir, tfDirName),outputDir, conf, chunkSize);
+            TFIDFConverter.calculateDF(new Path(outputDir, tfDirName),outputDir, freqFilePath, conf, chunkSize);
+
       }
 
+
+      //Chris: TODO - if pruning is used with an existing frequency file, this part will break
       long maxDF = maxDFPercent; //if we are pruning by std dev, then this will get changed
       if (shouldPrune) {
         Path dfDir = new Path(outputDir, TFIDFConverter.WORDCOUNT_OUTPUT_FOLDER);
