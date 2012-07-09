@@ -205,7 +205,7 @@ public final class SparseVectorsFromSequenceFiles extends AbstractJob {
       {
           freqFilePath = new Path(cmdLine.getValue(useFreqFileOpt).toString());
       }
-      log.info("path to existing frequency file is: "+ useFreqFileOpt.toString());
+      log.info("path to existing frequency file is: "+ freqFilePath.toString());
 
       //end edits
 
@@ -333,14 +333,21 @@ public final class SparseVectorsFromSequenceFiles extends AbstractJob {
       Pair<Long[], List<Path>> docFrequenciesFeatures = null;
       // Should document frequency features be processed
       if (shouldPrune || processIdf) {
-        docFrequenciesFeatures =
-            TFIDFConverter.calculateDF(new Path(outputDir, tfDirName),outputDir, freqFilePath, conf, chunkSize);
-
+        if (freqFilePath != null) {
+            docFrequenciesFeatures =
+                TFIDFConverter.calculateDF(new Path(freqFilePath, tfDirName),outputDir, freqFilePath, conf, chunkSize);
+        }
+        else {
+            docFrequenciesFeatures =
+                TFIDFConverter.calculateDF(new Path(outputDir, tfDirName),outputDir, freqFilePath, conf, chunkSize);
+        }
       }
 
 
       //Chris: TODO - if pruning is used with an existing frequency file, this part will break
+
       long maxDF = maxDFPercent; //if we are pruning by std dev, then this will get changed
+      /*
       if (shouldPrune) {
         Path dfDir = new Path(outputDir, TFIDFConverter.WORDCOUNT_OUTPUT_FOLDER);
         Path stdCalcDir = new Path(outputDir, HighDFWordsPruner.STD_CALC_DIR);
@@ -379,6 +386,7 @@ public final class SparseVectorsFromSequenceFiles extends AbstractJob {
         }
         HadoopUtil.delete(new Configuration(conf), tfDir);
       }
+      */
       if (processIdf) {
         TFIDFConverter.processTfIdf(
                new Path(outputDir, DictionaryVectorizer.DOCUMENT_VECTOR_OUTPUT_FOLDER),

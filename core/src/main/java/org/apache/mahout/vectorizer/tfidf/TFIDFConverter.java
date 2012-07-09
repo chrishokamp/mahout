@@ -187,7 +187,8 @@ public final class TFIDFConverter {
     if (freqFile != null) {
         Path wordCountPath = new Path(freqFile, WORDCOUNT_OUTPUT_FOLDER);
         startDFCounting(input, wordCountPath, baseConf);
-        return createDictionaryChunks(wordCountPath, output, baseConf, chunkSizeInMegabytes);
+        Path freqFilePath = new Path(freqFile, WORDCOUNT_OUTPUT_FOLDER);
+        return createDictionaryChunks(freqFilePath, output, baseConf, chunkSizeInMegabytes);
     }
     else {
          Path wordCountPath = new Path(output, WORDCOUNT_OUTPUT_FOLDER);
@@ -197,8 +198,8 @@ public final class TFIDFConverter {
   }
 
 
-
-
+  /*Chris: added this method to use an existing frequency file
+  private static Pair<Long[], List<Path>> createDictionaryChunks
 
     /**
    * Read the document frequency List which is built at the end of the DF Count Job. This will use constant
@@ -300,6 +301,11 @@ public final class TFIDFConverter {
                                          boolean namedVector)
     throws IOException, InterruptedException, ClassNotFoundException {
 
+
+    //Chris: added for testing
+    System.out.println("The MakePartialVectors job is running with input: " + input.toString() + " and output " + output.toString());
+
+
     Configuration conf = new Configuration(baseConf);
     // this conf parameter needs to be set enable serialisation of conf values
     conf.set("io.serializations", "org.apache.hadoop.io.serializer.JavaSerialization,"
@@ -349,6 +355,11 @@ public final class TFIDFConverter {
     
     Job job = new Job(conf);
     job.setJobName("VectorTfIdf Document Frequency Count running over input: " + input);
+    //Chris: added for testing
+    System.out.println("The VectorTfIdf job is running with input: " + input.toString() + " and output " + output.toString());
+
+
+
     job.setJarByClass(TFIDFConverter.class);
     
     job.setOutputKeyClass(IntWritable.class);
